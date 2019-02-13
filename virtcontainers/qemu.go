@@ -34,6 +34,12 @@ import (
 // such as SeaBIOS or OVMF for instance, to handle this directly.
 const romFile = ""
 
+func check (e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 type qmpChannel struct {
 	ctx     context.Context
 	path    string
@@ -1066,6 +1072,10 @@ func (q *qemu) hotplugAddCPUs(amount uint32) (uint32, error) {
 		amount = q.config.DefaultMaxVCPUs - currentVCPUs
 	}
 
+	f, err := os.Create("/tmp/kata-tmh.log")
+	check(err)
+	defer f.Close()
+
 	if amount == 0 {
 		// Don't fail if no more vCPUs can be added, since cgroups still can be updated
 		q.Logger().Warnf("maximum number of vCPUs '%d' has been reached", q.config.DefaultMaxVCPUs)
@@ -1078,10 +1088,20 @@ func (q *qemu) hotplugAddCPUs(amount uint32) (uint32, error) {
 		return 0, fmt.Errorf("failed to query hotpluggable CPUs: %v", err)
 	}
 
+	//dstring := []byte("I have a cpu")
+	//for _, hotplugcpu := range hotpluggableVCPUs {
+	//	f.Write(dstring)
+	//	var dnew []byte
+	//	dnew = make([]byte, hotplugcpu.VcpusCount)
+	//	f.Write(dnew)
+	//}
+
 	machine, err := q.arch.machine()
 	if err != nil {
 		return 0, fmt.Errorf("failed to query machine type: %v", err)
 	}
+
+	var counter int = 0
 
 	var hotpluggedVCPUs uint32
 	for _, hc := range hotpluggableVCPUs {
@@ -1097,14 +1117,38 @@ func (q *qemu) hotplugAddCPUs(amount uint32) (uint32, error) {
 		coreID := fmt.Sprintf("%d", hc.Properties.Core)
 		threadID := fmt.Sprintf("%d", hc.Properties.Thread)
 
+		counter = counter + 1
+		var abyte []byte
+		abyte = make([]byte, counter)
+		f.WriteString("\ncounter: ")
+		f.Write(abyte)
+		f.WriteString("\nmachine.Type: ")
+		f.WriteString(machine.Type)
+		f.WriteString("\ndriver:")
+		f.WriteString(driver)
+		f.WriteString("\ncpuID: ")
+		f.WriteString(cpuID)
+		f.WriteString("\nsocketID: ")
+		f.WriteString(socketID)
+		f.WriteString("\ncoreID: ")
+		f.WriteString(coreID)
+		f.WriteString("\nthreadID: ")
+		f.WriteString(threadID)
+
 		// If CPU type is IBM pSeries, we do not set socketID and threadID
 		if machine.Type == "pseries" {
+			socketID = ""
+			threadID = ""
+		}
+		if machine.Type == "s390-ccw-virtio" {
 			socketID = ""
 			threadID = ""
 		}
 
 		if err := q.qmpMonitorCh.qmp.ExecuteCPUDeviceAdd(q.qmpMonitorCh.ctx, driver, cpuID, socketID, coreID, threadID, romFile); err != nil {
 			// don't fail, let's try with other CPU
+			retval := []byte("\nFailed in ExecuteCPUDeviceAdd\n")
+			f.Write(retval)
 			continue
 		}
 

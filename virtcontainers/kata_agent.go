@@ -1296,8 +1296,12 @@ func (k *kataAgent) processListContainer(sandbox *Sandbox, c Container, options 
 }
 
 func (k *kataAgent) updateContainer(sandbox *Sandbox, c Container, resources specs.LinuxResources) error {
+	kagent_fp,_ := os.Create("/tmp/kata-agent.log")
+
 	grpcResources, err := grpc.ResourcesOCItoGRPC(&resources)
 	if err != nil {
+		kagent_fp.WriteString("grpc resources: \n")
+		kagent_fp.WriteString(fmt.Sprintln(err))
 		return err
 	}
 
@@ -1306,7 +1310,10 @@ func (k *kataAgent) updateContainer(sandbox *Sandbox, c Container, resources spe
 		Resources:   grpcResources,
 	}
 
+	kagent_fp.WriteString("\nAgent sending request ...\n")
 	_, err = k.sendReq(req)
+	kagent_fp.WriteString("\nAgent sending request error: \n")
+	kagent_fp.WriteString(fmt.Sprintln(err))
 	return err
 }
 

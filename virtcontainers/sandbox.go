@@ -1192,15 +1192,24 @@ func (s *Sandbox) EnterContainer(containerID string, cmd types.Cmd) (VCContainer
 // UpdateContainer update a running container.
 func (s *Sandbox) UpdateContainer(containerID string, resources specs.LinuxResources) error {
 	// Fetch the container.
+	vcsb_fp,_ := os.Create("/tmp/vc_sandbox.log")
+
 	c, err := s.findContainer(containerID)
 	if err != nil {
 		return err
 	}
+	vcsb_fp.WriteString("Found containerID: ")
+	vcsb_fp.WriteString(containerID)
+	vcsb_fp.WriteString("\nUpdating the resources to container ...\n")
 
 	err = c.update(resources)
 	if err != nil {
+		vcsb_fp.WriteString("Updating error : ")
+		vcsb_fp.WriteString(fmt.Sprintln(err))
+		vcsb_fp.WriteString("\n")
 		return err
 	}
+	vcsb_fp.WriteString("After updating the resources\n")
 
 	return c.storeContainer()
 }

@@ -1022,6 +1022,8 @@ func (c *Container) stats() (*ContainerStats, error) {
 }
 
 func (c *Container) update(resources specs.LinuxResources) error {
+	c_fp,_ := os.Create("/tmp/container.log")
+
 	if err := c.checkSandboxRunning("update"); err != nil {
 		return err
 	}
@@ -1054,6 +1056,7 @@ func (c *Container) update(resources specs.LinuxResources) error {
 	if err := c.sandbox.updateResources(); err != nil {
 		return err
 	}
+	c_fp.WriteString("container.sandbox.agent.updateContainer\n")
 
 	return c.sandbox.agent.updateContainer(c.sandbox, *c, resources)
 }

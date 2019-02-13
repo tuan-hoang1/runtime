@@ -26,6 +26,7 @@ func u64Ptr(i uint64) *uint64 { return &i }
 func u16Ptr(i uint16) *uint16 { return &i }
 
 var updateCLICommand = cli.Command{
+
 	Name:      "update",
 	Usage:     "update container resource constraints",
 	ArgsUsage: `<container-id>`,
@@ -129,6 +130,8 @@ other options are ignored.
 		},
 	},
 	Action: func(context *cli.Context) error {
+		tmhfp,_ := os.Create("/tmp/update.log")
+
 		ctx, err := cliContextToContext(context)
 		if err != nil {
 			return err
@@ -167,6 +170,12 @@ other options are ignored.
 		// container MUST be running
 		if state := status.State.State; !(state == types.StateRunning || state == types.StateReady) {
 			return fmt.Errorf("Container %s is not running or Ready, the state is %s", containerID, state)
+		} else {
+			tmhfp.WriteString("Container is running: ")
+			tmhfp.WriteString(containerID)
+			tmhfp.WriteString(" ,sandboxID: ")
+			tmhfp.WriteString(sandboxID)
+			tmhfp.WriteString("\n")
 		}
 
 		r := specs.LinuxResources{
@@ -218,6 +227,9 @@ other options are ignored.
 			}
 			if val := context.String("cpuset-cpus"); val != "" {
 				r.CPU.Cpus = val
+				tmhfp.WriteString("val cpuset-cpus is ")
+				tmhfp.WriteString(val)
+				tmhfp.WriteString("\n");
 			}
 			if val := context.String("cpuset-mems"); val != "" {
 				r.CPU.Mems = val
@@ -232,9 +244,12 @@ other options are ignored.
 				{"cpu-rt-period", r.CPU.RealtimePeriod},
 				{"cpu-share", r.CPU.Shares},
 			} {
+				tmhfp.WriteString("inside the first loop\n")
 				if val := context.String(pair.opt); val != "" {
 					var err error
 					*pair.dest, err = strconv.ParseUint(val, 10, 64)
+					tmhfp.WriteString("cpu-period, cpu-rt-period, cpu-share: ")
+					tmhfp.WriteString(fmt.Sprintf("%u\n", *pair.dest))
 					if err != nil {
 						return fmt.Errorf("invalid value for %s: %s", pair.opt, err)
 					}
@@ -248,9 +263,12 @@ other options are ignored.
 				{"cpu-quota", r.CPU.Quota},
 				{"cpu-rt-runtime", r.CPU.RealtimeRuntime},
 			} {
+				tmhfp.WriteString("inside the second loop\n")
 				if val := context.String(pair.opt); val != "" {
 					var err error
 					*pair.dest, err = strconv.ParseInt(val, 10, 64)
+					tmhfp.WriteString("cpu-quota, cpu-rt-runtime: ")
+					tmhfp.WriteString(fmt.Sprintf("%u\n", *pair.dest))
 					if err != nil {
 						return fmt.Errorf("invalid value for %s: %s", pair.opt, err)
 					}
